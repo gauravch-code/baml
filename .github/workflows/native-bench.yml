@@ -136,7 +136,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
-          sha12=$(git rev-parse --short=12 HEAD)
+          sha12=$(git rev-parse --short=12 HEAD)   # the candidate, read before the branch switch below
           dest="bench-x86-v1/${PR:+pr-$PR/}$(date -u +%Y-%m-%d)-$sha12"
           git config user.name "native-bench"
           git config user.email "native-bench@users.noreply.github.com"
@@ -154,7 +154,7 @@ jobs:
           git -c core.hooksPath=/dev/null commit -q -m "bench: $dest" || echo "nothing to commit"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" bench-results
           page="https://raw.githack.com/${GITHUB_REPOSITORY}/bench-results/$dest/kpis.html"
-          { echo "PAGE=$page"; echo "DEST=$dest"; } >> "$GITHUB_ENV"
+          { echo "PAGE=$page"; echo "DEST=$dest"; echo "SHA12=$sha12"; } >> "$GITHUB_ENV"
           { echo ""; echo "page: $page"; echo "bundle: https://github.com/${GITHUB_REPOSITORY}/tree/bench-results/$dest"; } >> "$GITHUB_STEP_SUMMARY"
 
       # One sticky comment per PR, replaced on every run.
@@ -166,11 +166,10 @@ jobs:
         run: |
           set -euo pipefail
           marker="<!-- native-bench -->"
-          sha12=$(git rev-parse --short=12 HEAD)
           body=$(printf '%s\n%s\n\n**[Open the page](%s)** · [bundle](https://github.com/%s/tree/bench-results/%s) · [run %s](https://github.com/%s/actions/runs/%s)\n' \
             "$marker" "$(cat "$RUNNER_TEMP/bundle/summary.md")" "$PAGE" "$GITHUB_REPOSITORY" "$DEST" "$GITHUB_RUN_ID" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID")
           body="$body
-          <sub>native bench on bench-x86-v1 at \`$sha12\`; the page is the bundle's kpis.html served from the bench-results branch.</sub>"
+          <sub>native bench on bench-x86-v1 at \`$SHA12\`; the page is the bundle's kpis.html served from the bench-results branch.</sub>"
           existing=$(gh api "repos/${GITHUB_REPOSITORY}/issues/${PR}/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${existing}" -f body="$body" >/dev/null
