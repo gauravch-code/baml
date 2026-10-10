@@ -96,6 +96,9 @@ def cmd_execute(a):
     manifest["artifacts"] = {case: {k: {"bytes": (layout.artifacts / case / k).stat().st_size, "sha256": runner.digest(layout.artifacts / case / k)}
                                     for k in ("program", "native", "native.stripped", "native-control", "rust", "go") if (layout.artifacts / case / k).exists()}
                              for case in protocol.cases}
+    # the pinned host's bytecode compile time, written by compile_bytecode beside the program
+    manifest["bytecode_compile_seconds"] = {case: float((layout.artifacts / case / "program.compile_seconds").read_text())
+                                            for case in protocol.cases if (layout.artifacts / case / "program.compile_seconds").exists()} or None
     failures, skipped = runner.verify(layout, protocol, out)
     manifest["verify"] = {"failures": len(failures), "skipped_rows": skipped}
     if failures and not a.keep_going:
